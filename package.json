@@ -1,0 +1,28 @@
+{
+    "name": "node-modbus",
+    "version": "0.0.1",
+    "description": "a typescript implement for modbus",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "tsc --project ./tsconfig.json",
+        "build-and-publish": "npm run build && npm publish"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/teddy1565/node-modbus.git"
+    },
+    "keywords": [
+        "modbus"
+    ],
+    "author": "teddy1565",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/teddy1565/node-modbus/issues"
+    },
+    "homepage": "https://github.com/teddy1565/node-modbus#readme"
+}
