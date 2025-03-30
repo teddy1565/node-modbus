@@ -25,8 +25,6 @@ export interface IModbusClientTCPBase extends IModbusReadRequest, IModbusWriteRe
 }
 
 export interface IModbusTCPClientOptions {
-    host: string;
-    port: number;
     /**
      * Range 1-255
      */
@@ -40,7 +38,10 @@ export interface IModbusTCPClientOptions {
 
 type SocketConOptions = net.SocketConstructorOpts;
 type SocketConnectOptions = net.TcpSocketConnectOpts;
-export type ModbusTCPClient_SocketOptions = Partial<SocketConOptions & SocketConnectOptions>;
+export type ModbusTCPClient_SocketOptions = Partial<SocketConOptions & SocketConnectOptions> & {
+    host: string;
+    port: number;
+};
 
 
 /**
@@ -74,6 +75,7 @@ export type ModbusTCPClientSocketOptions = IModbusTCPClientSocketOptions & net.T
 
 
 export interface IModbusTCPClient extends IModbusClientTCPBase {
+    connect(socket_options: ModbusTCPClient_SocketOptions): Promise<ModbusClientTCP>;
 }
 
 export abstract class AbsModbusClientTCP {
@@ -102,36 +104,8 @@ export abstract class AbsModbusClientTCP {
 
 export class ModbusClientTCP extends AbsModbusClientTCP implements IModbusTCPClient {
 
-    public static connect(client_options: IModbusTCPClientOptions, socket_options?: ModbusTCPClient_SocketOptions): ModbusClientTCP {
-        const _socket_options: ModbusTCPClient_SocketOptions = {
-            ...socket_options,
-            ...client_options
-        }
-
-        return new ModbusClientTCP(client_options, _socket_options);
-    }
-
-    protected readonly net_socket: net.Socket;
-    protected transaction_id: ModbusTCPTransactionID = 1;
-    protected primary_unit_id: ModbusTCPUnitID;
-
-    protected is_connected: boolean = false;
-    protected is_connecting: boolean = false;
-
-    protected readonly response_emitter: EventEmitter = new EventEmitter();
-
-    private constructor(client_options: IModbusTCPClientOptions, socket_options: ModbusTCPClient_SocketOptions) {
-        super();
-        this.response_emitter.setMaxListeners(0);
-        this.primary_unit_id = client_options?.unit_id || 1;
-        this.net_socket = new net.Socket(socket_options);
-        this.net_socket.connect({
-            ...{
-                host: client_options.host,
-                port: client_options.port
-            },
-            ...socket_options
-        });
+    public connect(socket_options: ModbusTCPClient_SocketOptions): Promise<ModbusClientTCP> {
+        this.net_socket.connect(socket_options);
         this.is_connecting = true;
 
         this.net_socket.on("data", (data) => {
@@ -166,6 +140,30 @@ export class ModbusClientTCP extends AbsModbusClientTCP implements IModbusTCPCli
             this.is_connecting = false;
             this.is_connected = true;
         });
+
+        return new Promise((resolve, reject) => {
+            this.net_socket.once("connect" ,() => {
+                return resolve(this);
+            });
+        });
+    }
+
+    protected readonly net_socket: net.Socket;
+    protected transaction_id: ModbusTCPTransactionID = 1;
+    protected primary_unit_id: ModbusTCPUnitID;
+
+    protected is_connected: boolean = false;
+    protected is_connecting: boolean = false;
+
+    protected readonly response_emitter: EventEmitter = new EventEmitter();
+
+    public constructor(client_options: IModbusTCPClientOptions, socket_constructor_options?: net.SocketConstructorOpts) {
+        super();
+        this.response_emitter.setMaxListeners(0);
+
+        this.primary_unit_id = client_options?.unit_id || 1;
+        this.net_socket = new net.Socket(socket_constructor_options);
+
 
 
     }
