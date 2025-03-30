@@ -24,5 +24,11 @@
     "bugs": {
         "url": "https://github.com/teddy1565/node-modbus/issues"
     },
-    "homepage": "https://github.com/teddy1565/node-modbus#readme"
+    "homepage": "https://github.com/teddy1565/node-modbus#readme",
+    "dependencies": {
+        "serialport": "^13.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.13.14"
+    }
 }
