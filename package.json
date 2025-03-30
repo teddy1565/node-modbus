@@ -1,6 +1,6 @@
 {
     "name": "node-modbus-lib",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "A TypeScript library for Modbus Server/Client communication over TCP and RTU.",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
