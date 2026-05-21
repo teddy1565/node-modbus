@@ -14,9 +14,9 @@ export type { IModbusClientBaseOptions } from "./client/abs-modbus-client";
 export { ModbusClientCore } from "./client/modbus-client-core";
 export type { IRequestSpec, IModbusClientCoreOptions, ResponseParser } from "./client/modbus-client-core";
 export { ModbusTCPClient } from "./client/modbus-tcp-client";
-export type { IModbusTCPClientOptions } from "./client/modbus-tcp-client";
+export type { IModbusTCPClientOptions, TcpTransportKind } from "./client/modbus-tcp-client";
 export { ModbusRTUClient } from "./client/modbus-rtu-client";
-export type { IModbusRTUClientOptions } from "./client/modbus-rtu-client";
+export type { IModbusRTUClientOptions, SerialTransportKind } from "./client/modbus-rtu-client";
 
 // ── Servers ────────────────────────────────────────────────────────
 export { ModbusServerCore } from "./server/modbus-server-core";
@@ -43,6 +43,10 @@ export { TcpPort } from "./ports/tcp-port";
 export type { ITcpPortOptions } from "./ports/tcp-port";
 export { RtuBufferedPort } from "./ports/rtu-buffered-port";
 export type { ISerialPortOptions } from "./ports/rtu-buffered-port";
+export { AsciiPort } from "./ports/ascii-port";
+export { UdpPort } from "./ports/udp-port";
+export { TelnetPort } from "./ports/telnet-port";
+export { TcpRTUBufferedPort } from "./ports/tcp-rtu-buffered-port";
 export { TestPort } from "./ports/test-port";
 
 // ── Protocol ───────────────────────────────────────────────────────
