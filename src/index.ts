@@ -56,6 +56,10 @@ export * from "./protocol/errors";
 export * from "./protocol/framing";
 export * from "./protocol/function-codes";
 
+// ── Worker (optional high-level layer) ─────────────────────────────
+export { ModbusWorker, bufferize, unbufferize } from "./worker/modbus-worker";
+export type { WorkerValueType, IWorkerRequest, IPollMapEntry, IPollOptions } from "./worker/modbus-worker";
+
 // ── Utilities ──────────────────────────────────────────────────────
 export { crc16 } from "./utils/crc16";
 export { lrc } from "./utils/lrc";
