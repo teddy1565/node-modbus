@@ -47,6 +47,7 @@ export { AsciiPort } from "./ports/ascii-port";
 export { UdpPort } from "./ports/udp-port";
 export { TelnetPort } from "./ports/telnet-port";
 export { TcpRTUBufferedPort } from "./ports/tcp-rtu-buffered-port";
+export { C701Port } from "./ports/c701-port";
 export { TestPort } from "./ports/test-port";
 
 // ── Protocol ───────────────────────────────────────────────────────

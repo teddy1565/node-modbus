@@ -10,11 +10,12 @@ import { TcpPort, type ITcpPortOptions } from "../ports/tcp-port";
 import { TcpRTUBufferedPort } from "../ports/tcp-rtu-buffered-port";
 import { TelnetPort } from "../ports/telnet-port";
 import { UdpPort } from "../ports/udp-port";
+import { C701Port } from "../ports/c701-port";
 import type { IModbusTransport } from "../ports/transport.interface";
 import { AbsModbusClient, type IModbusClientBaseOptions } from "./abs-modbus-client";
 
 /** TCP transport variants. */
-export type TcpTransportKind = "tcp" | "tcp-rtu-buffered" | "telnet" | "udp";
+export type TcpTransportKind = "tcp" | "tcp-rtu-buffered" | "telnet" | "udp" | "c701";
 
 /** Options for {@link ModbusTCPClient}. */
 export interface IModbusTCPClientOptions extends IModbusClientBaseOptions {
@@ -53,6 +54,9 @@ export class ModbusTCPClient extends AbsModbusClient {
                 break;
             case "udp":
                 transport = new UdpPort(portOptions);
+                break;
+            case "c701":
+                transport = new C701Port(portOptions);
                 break;
             case "tcp":
             default:
