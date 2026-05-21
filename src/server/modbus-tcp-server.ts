@@ -6,6 +6,7 @@ import * as net from "net";
 import { EventEmitter } from "events";
 import { tcpFrameToRtu, rtuFrameToTcp } from "../protocol/framing";
 import { MODBUS_TCP_PORT, MBAP_LENGTH, MAX_PDU_LENGTH } from "../protocol/constants";
+import type { IEnronTables } from "../protocol/types";
 import type { IModbusServerVector } from "./vector.interface";
 import { ModbusServerCore } from "./modbus-server-core";
 
@@ -30,6 +31,10 @@ export interface IModbusTCPServerOptions {
     /** Server unit id; 255 (default) accepts any unit. */
     unit_id?: number;
     debug?: boolean;
+    /** Enable the Enron 32-bit register variant for FC3/6. */
+    enron?: boolean;
+    /** Enron address-range table (required when `enron` is true). */
+    enron_tables?: IEnronTables;
 }
 
 /** Largest plausible MBAP length field. */
@@ -45,6 +50,8 @@ export class ModbusTCPServer extends EventEmitter {
         this.core = new ModbusServerCore(vector, {
             unitId: options.unit_id ?? 255,
             debug: options.debug,
+            enron: options.enron,
+            enronTables: options.enron_tables,
         });
 
         this.server = net.createServer();

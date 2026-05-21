@@ -8,7 +8,7 @@
 
 import { SerialPort } from "serialport";
 import { EventEmitter } from "events";
-import type { Parity } from "../protocol/types";
+import type { Parity, IEnronTables } from "../protocol/types";
 import { SerialPortError } from "../protocol/errors";
 import type { IModbusServerVector } from "./vector.interface";
 import { ModbusServerCore } from "./modbus-server-core";
@@ -28,6 +28,10 @@ export interface IModbusRTUServerOptions {
     /** Inter-frame silence in ms that delimits a request (default 30). */
     interval?: number;
     debug?: boolean;
+    /** Enable the Enron 32-bit register variant for FC3/6. */
+    enron?: boolean;
+    /** Enron address-range table (required when `enron` is true). */
+    enron_tables?: IEnronTables;
 }
 
 export class ModbusRTUServer extends EventEmitter {
@@ -42,6 +46,8 @@ export class ModbusRTUServer extends EventEmitter {
         this.core = new ModbusServerCore(vector, {
             unitId: options.unit_id ?? 255,
             debug: options.debug,
+            enron: options.enron,
+            enronTables: options.enron_tables,
         });
         this.interval = options.interval ?? 30;
 

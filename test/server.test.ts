@@ -67,6 +67,23 @@ test("FC6/FC5/FC16 — writes round-trip", async () => {
     });
 });
 
+test("FC23 — read/write multiple registers in one transaction", async () => {
+    await withPair(async (client) => {
+        // write [77,88] at address 3, read 5 registers from address 0
+        const result = await client.read_write_registers(0, 5, 3, [77, 88]);
+        assert.deepEqual(result.data, [10, 20, 30, 77, 88]);
+    });
+});
+
+test("FC22 — mask write register", async () => {
+    await withPair(async (client) => {
+        // reg[0] = 10 (0b01010); and 0xF0F0, or 0x0003 -> (10 & 0xF0F0)|(0x0003 & ~0xF0F0)
+        await client.mask_write_register(0, 0xf0f0, 0x0003);
+        const value = (await client.read_holding_registers(0, 1)).data[0];
+        assert.equal(value, (10 & 0xf0f0) | (0x0003 & ~0xf0f0));
+    });
+});
+
 test("FC17 — report server id", async () => {
     await withPair(async (client) => {
         const result = await client.report_server_id();

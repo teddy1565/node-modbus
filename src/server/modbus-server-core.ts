@@ -14,6 +14,7 @@ import {
     ModbusExceptionCode,
     EXCEPTION_BIT,
 } from "../protocol/constants";
+import type { IEnronTables } from "../protocol/types";
 import type { IModbusServerVector } from "./vector.interface";
 import {
     ServerException,
@@ -23,9 +24,11 @@ import {
     handleWriteRegister,
     handleWriteCoils,
     handleWriteRegisters,
+    handleReadWriteRegisters,
     handleMaskWriteRegister,
     handleReportServerID,
     handleReadDeviceIdentification,
+    type IServerHandlerContext,
 } from "./handlers";
 
 /** Receives the RTU response frame (or an error) produced for a request. */
@@ -36,16 +39,24 @@ export interface IModbusServerCoreOptions {
     /** Server unit id; 255 accepts requests for any unit. */
     unitId: number;
     debug?: boolean;
+    /** Enable the Enron 32-bit register variant for FC3/6. */
+    enron?: boolean;
+    /** Enron address-range table (required when `enron` is true). */
+    enronTables?: IEnronTables;
 }
 
 /** Smallest acceptable request frame: address + FC + CRC. */
 const MIN_REQUEST_LENGTH = 4;
 
 export class ModbusServerCore {
+    private readonly handlerContext: IServerHandlerContext;
+
     constructor(
         private readonly vector: IModbusServerVector,
         private readonly options: IModbusServerCoreOptions,
-    ) {}
+    ) {
+        this.handlerContext = { enron: options.enron, enronTables: options.enronTables };
+    }
 
     /**
      * Process one RTU request frame and deliver an RTU response through
@@ -88,15 +99,17 @@ export class ModbusServerCore {
                 return handleReadBits(pdu, this.vector, unitId, functionCode);
             case ModbusFunctionCode.READ_HOLDING_REGISTERS:
             case ModbusFunctionCode.READ_INPUT_REGISTERS:
-                return handleReadRegisters(pdu, this.vector, unitId, functionCode);
+                return handleReadRegisters(pdu, this.vector, unitId, functionCode, this.handlerContext);
             case ModbusFunctionCode.WRITE_SINGLE_COIL:
                 return handleWriteCoil(pdu, this.vector, unitId);
             case ModbusFunctionCode.WRITE_SINGLE_REGISTER:
-                return handleWriteRegister(pdu, this.vector, unitId);
+                return handleWriteRegister(pdu, this.vector, unitId, this.handlerContext);
             case ModbusFunctionCode.WRITE_MULTIPLE_COILS:
                 return handleWriteCoils(pdu, this.vector, unitId);
             case ModbusFunctionCode.WRITE_MULTIPLE_REGISTERS:
                 return handleWriteRegisters(pdu, this.vector, unitId);
+            case ModbusFunctionCode.READ_WRITE_MULTIPLE_REGISTERS:
+                return handleReadWriteRegisters(pdu, this.vector, unitId);
             case ModbusFunctionCode.REPORT_SERVER_ID:
                 return handleReportServerID(this.vector, unitId);
             case ModbusFunctionCode.MASK_WRITE_REGISTER:
