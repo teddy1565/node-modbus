@@ -25,6 +25,7 @@ import type {
     IReadWriteRegistersResult,
     ICustomFunctionResult,
     RegisterValue,
+    IEnronTables,
 } from "./types";
 
 /** Number of data bytes needed to pack `bitCount` coils. */
@@ -365,6 +366,44 @@ export function parseCustomFunctionResponse(pdu: Buffer): ICustomFunctionResult 
         data.push(pdu.readUInt8(i));
     }
     return { data, buffer: Buffer.from(pdu.subarray(1)) };
+}
+
+// ── Enron variant (32-bit registers for FC3/4/6) ───────────────────
+//
+// Enron Modbus carries 32-bit register values. Addresses inside the
+// `shortRange` table stay 16-bit; addresses outside it use 32 bits
+// (see notes 03, 07 §6.1).
+
+/** Whether `address` falls in the Enron 16-bit "short" register range. */
+export function isEnronShortRange(address: number, tables: IEnronTables): boolean {
+    return address >= tables.shortRange[0] && address <= tables.shortRange[1];
+}
+
+/** Parse a FC3/FC4 response PDU as 32-bit Enron registers. */
+export function parseReadRegistersResponseEnron(pdu: Buffer): IModbusReadRequest_Result<number[]> {
+    const byteCount = pdu.readUInt8(1);
+    const contents: number[] = [];
+    for (let i = 0; i < byteCount; i += 4) {
+        contents.push(pdu.readUInt32BE(i + 2));
+    }
+    return { data: contents, buffer: pdu.subarray(2, 2 + byteCount) };
+}
+
+/** Build a Write Single Register (FC6) request PDU with a 32-bit Enron value. */
+export function encodeWriteRegisterRequestEnron(dataAddress: number, value: number): Buffer {
+    const pdu = Buffer.alloc(7);
+    pdu.writeUInt8(ModbusFunctionCode.WRITE_SINGLE_REGISTER, 0);
+    pdu.writeUInt16BE(dataAddress, 1);
+    pdu.writeUInt32BE(value >>> 0, 3);
+    return pdu;
+}
+
+/** Parse a FC6 Enron response PDU (32-bit value). */
+export function parseWriteRegisterResponseEnron(pdu: Buffer): IWriteRegisterResult {
+    return {
+        address: pdu.readUInt16BE(1),
+        value: pdu.readUInt32BE(3),
+    };
 }
 
 /** Re-exported so callers can pack coil arrays consistently. */

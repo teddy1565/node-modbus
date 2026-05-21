@@ -46,7 +46,12 @@ import {
     parseDeviceIdentificationResponse,
     encodeCustomFunctionRequest,
     parseCustomFunctionResponse,
+    isEnronShortRange,
+    parseReadRegistersResponseEnron,
+    encodeWriteRegisterRequestEnron,
+    parseWriteRegisterResponseEnron,
 } from "../protocol/function-codes";
+import type { IEnronTables } from "../protocol/types";
 import type { IModbusTransport } from "../ports/transport.interface";
 import { ModbusClientCore, type IRequestSpec } from "./modbus-client-core";
 
@@ -56,6 +61,10 @@ export interface IModbusClientBaseOptions {
     unit_id?: number;
     /** Response timeout in ms (0 = no timeout). */
     timeout?: number;
+    /** Enable the Enron 32-bit register variant for FC3/4/6. */
+    enron?: boolean;
+    /** Enron address-range table (required when `enron` is true). */
+    enron_tables?: IEnronTables;
 }
 
 /** Reject early if a numeric argument is missing/invalid (helps JS callers). */
@@ -67,6 +76,10 @@ function assertNumber(value: unknown): void {
 
 export abstract class AbsModbusClient extends EventEmitter {
     protected readonly core: ModbusClientCore;
+    /** Whether the Enron 32-bit register variant is enabled. */
+    protected readonly enron: boolean;
+    /** Enron address-range table (when `enron` is enabled). */
+    protected readonly enronTables?: IEnronTables;
 
     protected constructor(transport: IModbusTransport, options: IModbusClientBaseOptions) {
         super();
@@ -75,8 +88,15 @@ export abstract class AbsModbusClient extends EventEmitter {
             timeout: options.timeout,
             unitId: options.unit_id ?? 1,
         });
+        this.enron = options.enron ?? false;
+        this.enronTables = options.enron_tables;
         this.core.on("error", (error: Error) => this.emit("error", error));
         this.core.on("close", () => this.emit("close"));
+    }
+
+    /** Whether the given register address should use 32-bit Enron encoding. */
+    private useEnron(address: number): boolean {
+        return this.enron && this.enronTables !== undefined && !isEnronShortRange(address, this.enronTables);
     }
 
     // ── Connection management ──────────────────────────────────────
@@ -205,12 +225,13 @@ export abstract class AbsModbusClient extends EventEmitter {
         return this.run(() => {
             assertNumber(address);
             assertNumber(quantity);
+            const enron = this.useEnron(address);
             return {
                 unitId: unit_id ?? this.core.getId(),
                 functionCode,
                 pdu: encodeReadRegistersRequest(functionCode, address, quantity),
-                expectedLength: 3 + 2 * quantity + 2,
-                parse: parseReadRegistersResponse,
+                expectedLength: 3 + (enron ? 4 : 2) * quantity + 2,
+                parse: enron ? parseReadRegistersResponseEnron : parseReadRegistersResponse,
             };
         });
     }
@@ -235,6 +256,15 @@ export abstract class AbsModbusClient extends EventEmitter {
     public write_register(address: number, value: RegisterValue, unit_id?: number): Promise<IWriteRegisterResult> {
         return this.run(() => {
             assertNumber(address);
+            if (this.useEnron(address) && typeof value === "number") {
+                return {
+                    unitId: unit_id ?? this.core.getId(),
+                    functionCode: ModbusFunctionCode.WRITE_SINGLE_REGISTER,
+                    pdu: encodeWriteRegisterRequestEnron(address, value),
+                    expectedLength: 10,
+                    parse: parseWriteRegisterResponseEnron,
+                };
+            }
             return {
                 unitId: unit_id ?? this.core.getId(),
                 functionCode: ModbusFunctionCode.WRITE_SINGLE_REGISTER,
@@ -243,6 +273,20 @@ export abstract class AbsModbusClient extends EventEmitter {
                 parse: parseWriteRegisterResponse,
             };
         });
+    }
+
+    /** FC3 alias — read registers using the Enron 32-bit variant (requires `enron`). */
+    public read_registers_enron(
+        address: number,
+        quantity: number,
+        unit_id?: number,
+    ): Promise<IModbusReadRequest_Result<number[]>> {
+        return this.read_holding_registers(address, quantity, unit_id);
+    }
+
+    /** FC6 alias — write a register using the Enron 32-bit variant (requires `enron`). */
+    public write_register_enron(address: number, value: number, unit_id?: number): Promise<IWriteRegisterResult> {
+        return this.write_register(address, value, unit_id);
     }
 
     // ── FC15/16 — write multiple ───────────────────────────────────

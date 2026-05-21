@@ -24,6 +24,10 @@ import {
     encodeWriteCoilRequest,
     parseWriteCoilResponse,
     encodeReadWriteRegistersRequest,
+    encodeWriteRegisterRequestEnron,
+    parseWriteRegisterResponseEnron,
+    parseReadRegistersResponseEnron,
+    isEnronShortRange,
     ModbusFunctionCode,
 } from "../dist/index.js";
 
@@ -90,6 +94,21 @@ test("FC5 — write coil request/response", () => {
     assert.equal(encodeWriteCoilRequest(13, false).toString("hex"), "05000d0000");
     const r = parseWriteCoilResponse(Buffer.from("05000dff00", "hex"));
     assert.deepEqual(r, { address: 13, state: true });
+});
+
+test("Enron — 32-bit FC6 encode + FC6/FC3 parse roundtrip", () => {
+    const tables = { shortRange: [3001, 3999] as [number, number] };
+    assert.equal(isEnronShortRange(3500, tables), true);
+    assert.equal(isEnronShortRange(5001, tables), false);
+
+    // FC6 Enron request: [06][addr 2][value 4]
+    const req = encodeWriteRegisterRequestEnron(5001, 0x12345678);
+    assert.equal(req.toString("hex"), "06138912345678"); // [06][1389][12345678]
+    assert.deepEqual(parseWriteRegisterResponseEnron(req), { address: 5001, value: 0x12345678 });
+
+    // FC3 Enron response: byte count 8 -> two 32-bit registers
+    const resp = Buffer.from("0308000003e8ffffffff", "hex");
+    assert.deepEqual(parseReadRegistersResponseEnron(resp).data, [1000, 0xffffffff]);
 });
 
 test("FC23 — encoder enforces register-count limits", () => {
