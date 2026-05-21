@@ -67,6 +67,23 @@ test("FC6/FC5/FC16 — writes round-trip", async () => {
     });
 });
 
+test("FC15 — write multiple coils round-trip", async () => {
+    const coilStore: boolean[] = [];
+    await withPair(
+        async (client) => {
+            const result = await client.write_coils(0, [true, false, true, true]);
+            assert.equal(result.length, 4);
+            assert.deepEqual(coilStore.slice(0, 4), [true, false, true, true]);
+        },
+        {
+            setCoilArray: (addr, states) => {
+                states.forEach((state, i) => (coilStore[addr + i] = state));
+            },
+            getCoil: (addr) => coilStore[addr] ?? false,
+        },
+    );
+});
+
 test("FC23 — read/write multiple registers in one transaction", async () => {
     await withPair(async (client) => {
         // write [77,88] at address 3, read 5 registers from address 0

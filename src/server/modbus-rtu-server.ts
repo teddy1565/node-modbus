@@ -72,7 +72,7 @@ export class ModbusRTUServer extends EventEmitter {
     }
 
     /** The underlying serial port. */
-    public getPort(): SerialPort {
+    public get_port(): SerialPort {
         return this.serial;
     }
 

@@ -113,7 +113,9 @@ export class TcpRTUBufferedPort extends AbsModbusTransport {
             return;
         }
 
-        const maxOffset = this.buffer.length - MBAP_LENGTH;
+        // Only scan offsets that could still hold a minimal MBAP+PDU, so the
+        // header reads below are always in bounds.
+        const maxOffset = this.buffer.length - (MBAP_LENGTH + EXCEPTION_LENGTH);
         for (let i = 0; i <= maxOffset; i++) {
             const protocolId = this.buffer.readUInt16BE(i + 2);
             const msgLength = this.buffer.readUInt16BE(i + 4);

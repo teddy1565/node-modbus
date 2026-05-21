@@ -50,7 +50,10 @@ type AnyVectorFn = (...args: unknown[]) => unknown;
 function invokeVector<T>(fn: AnyVectorFn, args: unknown[], callbackArity: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {
         try {
-            if (fn.length >= callbackArity) {
+            // Exact-arity match (not `>=`): a value-style handler that happens
+            // to declare an extra parameter must not be mistaken for the
+            // callback style, or its return value would be silently dropped.
+            if (fn.length === callbackArity) {
                 fn(...args, (error: Error | null, value?: T) => {
                     if (error) {
                         reject(error);
@@ -170,7 +173,12 @@ export async function handleWriteCoil(
     const address = pdu.readUInt16BE(1);
     const state = pdu.readUInt16BE(3) === 0xff00;
     await invokeVector<void>(vector.setCoil as AnyVectorFn, [address, state, unitId], 4);
-    return Buffer.from(pdu); // echo
+
+    const response = Buffer.alloc(5);
+    response.writeUInt8(ModbusFunctionCode.WRITE_SINGLE_COIL, 0);
+    response.writeUInt16BE(address, 1);
+    response.writeUInt16BE(state ? 0xff00 : 0x0000, 3);
+    return response;
 }
 
 /** FC6 — Write Single Register (Enron 32-bit value when enabled). */
@@ -189,7 +197,19 @@ export async function handleWriteRegister(
     const enron = useEnron(address, context) && pdu.length >= 7;
     const value = enron ? pdu.readUInt32BE(3) : pdu.readUInt16BE(3);
     await invokeVector<void>(vector.setRegister as AnyVectorFn, [address, value, unitId], 4);
-    return Buffer.from(pdu); // echo
+
+    if (enron) {
+        const response = Buffer.alloc(7);
+        response.writeUInt8(ModbusFunctionCode.WRITE_SINGLE_REGISTER, 0);
+        response.writeUInt16BE(address, 1);
+        response.writeUInt32BE(value >>> 0, 3);
+        return response;
+    }
+    const response = Buffer.alloc(5);
+    response.writeUInt8(ModbusFunctionCode.WRITE_SINGLE_REGISTER, 0);
+    response.writeUInt16BE(address, 1);
+    response.writeUInt16BE(value & 0xffff, 3);
+    return response;
 }
 
 /** FC15 — Write Multiple Coils. */
@@ -202,6 +222,10 @@ export async function handleWriteCoils(
     const length = pdu.readUInt16BE(3);
     if (length < 1) {
         throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Invalid length");
+    }
+    // PDU = FC + address(2) + quantity(2) + byteCount(1) + packed bits.
+    if (pdu.length < 6 + Math.ceil(length / 8)) {
+        throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Request length mismatch");
     }
 
     const states: boolean[] = [];
@@ -236,6 +260,10 @@ export async function handleWriteRegisters(
     const length = pdu.readUInt16BE(3);
     if (length < 1) {
         throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Invalid length");
+    }
+    // PDU = FC + address(2) + quantity(2) + byteCount(1) + register data.
+    if (pdu.length < 6 + length * 2) {
+        throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Request length mismatch");
     }
 
     const values: number[] = [];
@@ -272,6 +300,11 @@ export async function handleReadWriteRegisters(
     const writeLength = pdu.readUInt16BE(7);
     if (readLength < 1 || writeLength < 1) {
         throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Invalid length");
+    }
+    // PDU = FC + readAddr(2) + readQty(2) + writeAddr(2) + writeQty(2)
+    //       + byteCount(1) + write register data.
+    if (pdu.length < 10 + writeLength * 2) {
+        throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE, "Request length mismatch");
     }
 
     // Write phase.
@@ -337,7 +370,13 @@ export async function handleMaskWriteRegister(
     const current = await invokeVector<number>(getter as AnyVectorFn, [address, unitId], 3);
     const updated = ((current & andMask) | (orMask & ~andMask)) & 0xffff;
     await invokeVector<void>(vector.setRegister as AnyVectorFn, [address, updated, unitId], 4);
-    return Buffer.from(pdu); // echo
+
+    const response = Buffer.alloc(7);
+    response.writeUInt8(ModbusFunctionCode.MASK_WRITE_REGISTER, 0);
+    response.writeUInt16BE(address, 1);
+    response.writeUInt16BE(andMask, 3);
+    response.writeUInt16BE(orMask, 5);
+    return response;
 }
 
 /** FC17 — Report Server ID. */
@@ -378,6 +417,10 @@ export async function handleReadDeviceIdentification(
     }
 
     const readDeviceIdCode = pdu.readUInt8(2);
+    // Valid read-device-id codes are 0x01..0x04 (basic/regular/extended/individual).
+    if (readDeviceIdCode < 0x01 || readDeviceIdCode > 0x04) {
+        throw new ServerException(ModbusExceptionCode.ILLEGAL_DATA_VALUE);
+    }
     const requestedObjectId = pdu.readUInt8(3);
     const objects = await Promise.resolve(vector.readDeviceIdentification(unitId));
 

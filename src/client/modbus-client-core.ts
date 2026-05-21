@@ -248,6 +248,9 @@ export class ModbusClientCore extends EventEmitter {
     }
 
     private onError(error: Error): void {
+        // Reject any in-flight transaction so callers are not left hanging
+        // when a transport error is not followed by a close event.
+        this.rejectAll(error);
         this.emit("error", error);
     }
 
@@ -278,7 +281,16 @@ export class ModbusClientCore extends EventEmitter {
 
         const { spec } = transaction;
 
-        // Step 6 — minimum length.
+        // Step 6a — absolute minimum length. A frame shorter than
+        // address(1) + function code(1) + CRC(2) cannot be parsed at all;
+        // this check is unconditional so `parseRtuFrame` never reads a
+        // CRC at a negative offset (would throw outside the try block).
+        if (frame.length < 4) {
+            this.settle(new UnexpectedDataError(`Data length error, got ${frame.length}`));
+            return;
+        }
+
+        // Step 6b — minimum length for fixed-length responses.
         if (!spec.lengthUnknown && frame.length < EXCEPTION_FRAME_LENGTH) {
             this.settle(
                 new UnexpectedDataError(

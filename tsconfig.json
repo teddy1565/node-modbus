@@ -4,8 +4,7 @@
         "module": "node16",
         "moduleResolution": "node16",
         "lib": [
-            "es2022",
-            "DOM"
+            "es2022"
         ],
         "declaration": true,
         "declarationMap": true,

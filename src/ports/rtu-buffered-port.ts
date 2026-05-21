@@ -150,9 +150,16 @@ export class RtuBufferedPort extends AbsModbusTransport {
                     return;
                 }
             } else if (functionCode === this.cmd && functionCode === ModbusFunctionCode.REPORT_SERVER_ID) {
-                const contentLength = this.buffer[i + 2];
-                this.emitFrame(i, contentLength + 5);
-                return;
+                if (i + 2 >= bufferLength) {
+                    return; // content-length byte not received yet
+                }
+                // address + FC + byteCount + content + CRC
+                const frameLength = this.buffer[i + 2] + 5;
+                if (i + frameLength <= bufferLength) {
+                    this.emitFrame(i, frameLength);
+                    return;
+                }
+                return; // full frame not received yet
             } else if (typeof expected === "number") {
                 if (functionCode === this.cmd && i + expected <= bufferLength) {
                     this.emitFrame(i, expected);
@@ -177,7 +184,8 @@ export class RtuBufferedPort extends AbsModbusTransport {
     private calculateFc43Length(numObjects: number, i: number, bufferLength: number): number | null {
         let currentByte = 8 + i;
         for (let j = 0; j < numObjects; j++) {
-            if (bufferLength < currentByte) {
+            // Need the object id and its length byte to be present.
+            if (currentByte + 1 >= bufferLength) {
                 return null;
             }
             const objLength = this.buffer[currentByte + 1];

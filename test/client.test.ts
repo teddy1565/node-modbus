@@ -56,6 +56,12 @@ test("FC6 write then FC3 read back", async () => {
     await new Promise<void>((r) => core.close(() => r()));
 });
 
+test("unit 2 — short data rejects without crashing", async () => {
+    const core = await openCore();
+    await assert.rejects(readHolding(core, 2, 8, 1), (error: Error) => error.name === "UnexpectedDataError");
+    await new Promise<void>((r) => core.close(() => r()));
+});
+
 test("unit 3 — bad CRC rejects with CrcError", async () => {
     const core = await openCore();
     await assert.rejects(readHolding(core, 3, 8, 1), (error: Error) => error.name === "CrcError");

@@ -89,12 +89,13 @@ export class ModbusTCPServer extends EventEmitter {
         socket.on("data", (data: Buffer) => {
             recvBuffer = Buffer.concat([recvBuffer, data]);
 
-            while (recvBuffer.length > MBAP_LENGTH) {
+            while (recvBuffer.length >= MBAP_LENGTH) {
                 const transactionId = recvBuffer.readUInt16BE(0);
+                const protocolId = recvBuffer.readUInt16BE(2);
                 const pduLength = recvBuffer.readUInt16BE(4);
 
-                if (pduLength < 1 || pduLength > MAX_MBAP_LENGTH_FIELD) {
-                    recvBuffer = Buffer.alloc(0); // malformed MBAP length: resync
+                if (protocolId !== 0 || pduLength < 1 || pduLength > MAX_MBAP_LENGTH_FIELD) {
+                    recvBuffer = Buffer.alloc(0); // malformed MBAP header: resync
                     break;
                 }
                 if (recvBuffer.length - MBAP_LENGTH < pduLength) {

@@ -150,13 +150,15 @@ export class TcpPort extends AbsModbusTransport {
     private onData(data: Buffer): void {
         this.rcvBuffer = Buffer.concat([this.rcvBuffer, data]);
 
-        while (this.rcvBuffer.length > MBAP_LENGTH) {
+        while (this.rcvBuffer.length >= MBAP_LENGTH) {
+            const protocolId = this.rcvBuffer.readUInt16BE(2);
             const length = this.rcvBuffer.readUInt16BE(4);
 
-            // Guard against a malformed / hostile MBAP length field.
-            if (length < 1 || length > MAX_MBAP_LENGTH_FIELD) {
+            // Guard against a malformed / hostile MBAP header: the Protocol
+            // Identifier must be 0 and the length field must be sane.
+            if (protocolId !== 0 || length < 1 || length > MAX_MBAP_LENGTH_FIELD) {
                 this.rcvBuffer = Buffer.alloc(0);
-                this.emit("error", new Error(`Invalid MBAP length field: ${length}`));
+                this.emit("error", new Error(`Invalid MBAP header (protocolId=${protocolId}, length=${length})`));
                 return;
             }
 

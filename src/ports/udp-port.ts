@@ -45,9 +45,21 @@ export class UdpPort extends AbsModbusTransport {
     }
 
     public open(callback: (error?: Error) => void): void {
+        let settled = false;
+        const onBindError = (error: Error): void => {
+            if (!settled) {
+                settled = true;
+                callback(error);
+            }
+        };
+        this.socket.once("error", onBindError);
         this.socket.bind(() => {
-            this.openFlag = true;
-            callback();
+            this.socket.removeListener("error", onBindError);
+            if (!settled) {
+                settled = true;
+                this.openFlag = true;
+                callback();
+            }
         });
     }
 
