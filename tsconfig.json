@@ -1,28 +1,25 @@
 {
     "compilerOptions": {
-        "baseUrl": ".",
-        "paths": {
-            "*": ["types/*"]
-        },
         "target": "es2022",
-        "module": "commonjs",
+        "module": "node16",
+        "moduleResolution": "node16",
         "lib": [
-            "es2022",
-            "es2017",
-            "es7",
-            "es6",
-            "es5",
-            "DOM"
+            "es2022"
         ],
         "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
         "outDir": "./dist",
         "rootDir": "./src",
         "strict": true,
+        "noImplicitOverride": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
         "allowSyntheticDefaultImports": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "allowJs": true
+        "types": ["node"]
     },
     "include": [
         "./src/**/*.ts"

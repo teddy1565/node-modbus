@@ -8,8 +8,10 @@
         "dist"
     ],
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
         "build": "tsc --project ./tsconfig.json",
+        "typecheck": "tsc --noEmit --project ./tsconfig.json",
+        "pretest": "npm run build",
+        "test": "node --test \"test/**/*.test.ts\"",
         "build-and-publish": "npm run build && npm publish"
     },
     "repository": {
@@ -25,10 +27,14 @@
         "url": "https://github.com/teddy1565/node-modbus/issues"
     },
     "homepage": "https://github.com/teddy1565/node-modbus#readme",
+    "engines": {
+        "node": ">=22.6.0"
+    },
     "dependencies": {
         "serialport": "^13.0.0"
     },
     "devDependencies": {
-        "@types/node": "^22.13.14"
+        "@types/node": "^24.0.0",
+        "typescript": "^6.0.0"
     }
 }
